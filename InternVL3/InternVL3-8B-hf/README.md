@@ -6,20 +6,13 @@
 - torch 2.8.0
 - torchvision 0.23.0
 
-# 一、convert to hf format
+# 一、模型
 InternVL 提供了两种模型权重的格式，包括和前几代权重格式一致的 [GitHub 格式](https://huggingface.co/OpenGVLab/InternVL3_5-GPT-OSS-20B-A4B-Preview#github-format)以及和`transformers`库格式一致的 [HuggingFace 格式](https://huggingface.co/OpenGVLab/InternVL3_5-GPT-OSS-20B-A4B-Preview#huggingface-format)。
-量化建议使用 hf 格式，因为笔者所使用的模型为基于 Github 格式微调过的，所以要先将其转为 hf 格式再量化。
-InternVL官方有提供转换脚本 [internvl_custom2hf.py](https://github.com/OpenGVLab/InternVL/blob/main/internvl_chat/tools/internvl_custom2hf.py)
-```
-python custom2hf.py 
-    --custom_path /root/workspace/models/InternVL3-8B/ 
-    --hf_path /root/workspace/models/InternVL3-8B-hf 
-    --save_path /root/workspace/models/InternVL3-8B-hf-1
-```
-这里有个问题，转换后的 `InternVL3-8B-hf-1`路径下面并不像 `InternVL3-8B-hf`下有 `preprocessor_config.json` 和 `processor_config.json` 文件，笔者是将`InternVL3-8B-hf`下的文件拷贝过来，感觉脚本功能不完善。
 
-下面均以量化 `InternVL3-8B-hf` 为例。
+
+下面以量化 `InternVL3-8B-hf` 为例。
 # 二、动手量化
+笔者尝试过量化VIT模块，但是输出是异常数据，所以这里都只量化LLM模块。
 ## 2.1 使用文本校准数据集
 ### 2.1.1 量化相关配置
 - 1、Load Model
@@ -218,14 +211,14 @@ processor.save_pretrained(SAVE_DIR)
 - 1、Killed (程序运行中途被kill)
 这种问题一般是由于OOM导致进程被杀掉，由于笔者是在k8s的pod中运行，故增大内存(非显存)即可
 - 2、pyarrow.lib.ArrowInvalid: offset overflow while concatenating arrays, consider casting input from ...
-![输入图片说明](../.assets/pyarrow.png)
+![输入图片说明](../../.assets/pyarrow.png)
 
 参考 issue [#6206 ](https://github.com/huggingface/datasets/issues/6206)，修改 ds.map 
 ```
 ds = ds.map(preprocess_and_tokenize, remove_columns=ds.column_names, writer_batch_size=10)
 ```
 - 3、AttributeError: 'Tensor' object has no attribute 'value'. Did you mean: 'values'
-![输入图片说明](../.assets/tensor_value.png)
+![输入图片说明](../../.assets/tensor_value.png)
 
 这个是因为笔者最开始定义的data_collator 是：
 ```
